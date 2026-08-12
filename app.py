@@ -6,10 +6,10 @@ import io
 st.set_page_config(page_title="Convertidor TXT a Excel", page_icon="📊", layout="wide")
 
 st.title("📊 Convertidor de Reportes TXT a Excel")
-st.markdown("Herramienta para procesar el archivo `.txt` periódico y convertirlo a un Excel estructurado sin espacios sobrantes.")
+st.markdown("Carga tu archivo `.txt` y haz clic en **Convertir a Excel** para procesar la información.")
 
-# Cargar archivo
-uploaded_file = st.file_uploader("📂 Selecciona o arrastra tu archivo .txt aquí", type=["txt"])
+# Paso 1: Cargar archivo
+uploaded_file = st.file_uploader("📂 1. Selecciona o arrastra tu archivo .txt aquí", type=["txt"])
 
 # Coordenadas exactas de ancho fijo (inicio, fin) para cada columna
 colspecs = [
@@ -37,46 +37,49 @@ headers = [
 ]
 
 if uploaded_file is not None:
-    try:
-        # Lectura del archivo de ancho fijo
-        df = pd.read_fwf(
-            uploaded_file,
-            colspecs=colspecs,
-            header=None,
-            names=headers,
-            skiprows=2
-        )
-        
-        # Limpieza de espacios al inicio/final en texto
-        df = df.apply(lambda col: col.str.strip() if col.dtype == "object" else col)
-        
-        st.success("✅ Archivo procesado correctamente.")
-        
-        # Vista previa en la interfaz
-        st.subheader("👀 Vista previa de los datos")
-        st.dataframe(df.head(10), use_container_width=True)
+    # Paso 2: Botón para procesar
+    if st.button("⚡ Convertir a Excel", type="primary"):
+        with st.spinner("Procesando archivo..."):
+            try:
+                # Lectura del archivo de ancho fijo
+                df = pd.read_fwf(
+                    uploaded_file,
+                    colspecs=colspecs,
+                    header=None,
+                    names=headers,
+                    skiprows=2
+                )
+                
+                # Limpieza de espacios al inicio/final en texto
+                df = df.apply(lambda col: col.str.strip() if col.dtype == "object" else col)
+                
+                st.success("✅ ¡Conversión completada con éxito!")
+                
+                # Vista previa en la interfaz
+                st.subheader("👀 Vista previa de los datos")
+                st.dataframe(df.head(10), use_container_width=True)
 
-        # Generar el archivo Excel descargable
-        output = io.BytesIO()
-        with pd.ExcelWriter(output, engine='openpyxl') as writer:
-            df.to_excel(writer, index=False, sheet_name='Reporte')
-            
-            # Auto-ajustar el ancho de las columnas dentro del propio Excel generado
-            worksheet = writer.sheets['Reporte']
-            for col in worksheet.columns:
-                max_len = max(len(str(cell.value or '')) for cell in col)
-                col_letter = col[0].column_letter
-                worksheet.column_dimensions[col_letter].width = max(max_len + 3, 12)
+                # Generar el archivo Excel descargable en memoria
+                output = io.BytesIO()
+                with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                    df.to_excel(writer, index=False, sheet_name='Reporte')
+                    
+                    # Auto-ajustar el ancho de las columnas dentro del propio Excel generado
+                    worksheet = writer.sheets['Reporte']
+                    for col in worksheet.columns:
+                        max_len = max(len(str(cell.value or '')) for cell in col)
+                        col_letter = col[0].column_letter
+                        worksheet.column_dimensions[col_letter].width = max(max_len + 3, 12)
 
-        output.seek(0)
+                output.seek(0)
 
-        # Botón para descargar
-        st.download_button(
-            label="📥 Descargar Excel limpio (.xlsx)",
-            data=output,
-            file_name="Reporte_Convertido.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
+                # Botón de descarga
+                st.download_button(
+                    label="📥 Descargar Excel (.xlsx)",
+                    data=output,
+                    file_name="Reporte_Convertido.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
 
-    except Exception as e:
-        st.error(f"❌ Ocurrió un error al procesar el archivo: {e}")
+            except Exception as e:
+                st.error(f"❌ Ocurrió un error al procesar el archivo: {e}")
