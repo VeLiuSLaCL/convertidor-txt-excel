@@ -2,16 +2,16 @@ import streamlit as st
 import pandas as pd
 import io
 
-# Configuración de la página
-st.set_page_config(page_title="Convertidor TXT a Excel", page_icon="📊", layout="wide")
+# Configuración básica de la página
+st.set_page_config(page_title="Procesador de Reportes TXT", page_icon="⚙️", layout="wide")
 
-st.title("📊 Convertidor de Reportes TXT a Excel")
-st.markdown("Carga tu archivo `.txt` y haz clic en **Convertir a Excel** para procesar la información.")
+st.title("⚙️ Procesador de Reportes TXT a Excel")
+st.caption("Paso 1: Lectura de ancho fijo y conversión a Excel limpia.")
 
-# Paso 1: Cargar archivo
-uploaded_file = st.file_uploader("📂 1. Selecciona o arrastra tu archivo .txt aquí", type=["txt"])
+# Cargar archivo
+uploaded_file = st.file_uploader("📂 Arrastra tu archivo .txt aquí", type=["txt", "log"])
 
-# Coordenadas exactas de ancho fijo (inicio, fin) para cada columna
+# Definición de coordenadas exactas para archivo de Ancho Fijo
 colspecs = [
     (0, 21),    # No. Contrato
     (21, 42),   # Cuenta de cheques
@@ -37,34 +37,39 @@ headers = [
 ]
 
 if uploaded_file is not None:
-    # Paso 2: Botón para procesar
-    if st.button("⚡ Convertir a Excel", type="primary"):
-        with st.spinner("Procesando archivo..."):
+    st.info(f"📄 Archivo cargado: **{uploaded_file.name}** ({round(uploaded_file.size/1024, 2)} KB)")
+    
+    if st.button("🚀 Procesar y Convertir a Excel", type="primary"):
+        with st.spinner("Decodificando estructura del archivo..."):
             try:
-                # Lectura del archivo de ancho fijo
+                # Convertir el archivo a un buffer de texto directo para evitar cortes de red
+                bytes_data = uploaded_file.getvalue()
+                string_io = io.StringIO(bytes_data.decode("utf-8", errors="ignore"))
+                
+                # Lectura pandas
                 df = pd.read_fwf(
-                    uploaded_file,
+                    string_io,
                     colspecs=colspecs,
                     header=None,
                     names=headers,
                     skiprows=2
                 )
                 
-                # Limpieza de espacios al inicio/final en texto
+                # Limpiar espacios en blanco innecesarios
                 df = df.apply(lambda col: col.str.strip() if col.dtype == "object" else col)
                 
-                st.success("✅ ¡Conversión completada con éxito!")
+                st.success("¡Estructura leída correctamente!")
                 
-                # Vista previa en la interfaz
-                st.subheader("👀 Vista previa de los datos")
+                # Vista previa
+                st.subheader("📊 Vista previa (Primeros 10 registros)")
                 st.dataframe(df.head(10), use_container_width=True)
 
-                # Generar el archivo Excel descargable en memoria
+                # Exportación a Excel en memoria
                 output = io.BytesIO()
                 with pd.ExcelWriter(output, engine='openpyxl') as writer:
                     df.to_excel(writer, index=False, sheet_name='Reporte')
                     
-                    # Auto-ajustar el ancho de las columnas dentro del propio Excel generado
+                    # Formato de ancho automático de celdas
                     worksheet = writer.sheets['Reporte']
                     for col in worksheet.columns:
                         max_len = max(len(str(cell.value or '')) for cell in col)
@@ -73,13 +78,13 @@ if uploaded_file is not None:
 
                 output.seek(0)
 
-                # Botón de descarga
+                # Botón para descargar el Excel resultante
                 st.download_button(
-                    label="📥 Descargar Excel (.xlsx)",
+                    label="📥 Descargar Excel Generado (.xlsx)",
                     data=output,
                     file_name="Reporte_Convertido.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 )
 
             except Exception as e:
-                st.error(f"❌ Ocurrió un error al procesar el archivo: {e}")
+                st.error(f"❌ Error durante el procesamiento: {e}")
